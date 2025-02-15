@@ -30,7 +30,7 @@ const githubConfig = {
     owner: 'sy0310',              // 你的 GitHub 用户名
     repo: 'YSHT_LOVE',           // 你的仓库名
     branch: 'main',               // 分支名
-    token: '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'  // 新的 token
+    token: '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'  // 使用新的 token
 };
 
 // 修改文件上传函数
