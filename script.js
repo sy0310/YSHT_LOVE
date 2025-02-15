@@ -32,18 +32,6 @@ const githubConfig = {
     branch: 'main'               // 分支名
 };
 
-// 添加设置 token 的函数
-function setGitHubToken(token) {
-    if (token && typeof token === 'string' && token.length > 0) {
-        localStorage.setItem('github_token', token);
-        return true;
-    }
-    return false;
-}
-
-// 在控制台中使用这个函数来设置 token
-// setGitHubToken('your-token-here');
-
 // 修改文件上传函数
 async function uploadToGithub(file, chapter) {
     try {
@@ -66,40 +54,35 @@ async function uploadToGithub(file, chapter) {
         });
 
         // 从本地存储获取 token
-        const token = localStorage.getItem('github_token');
-        if (!token) {
-            throw new Error('请先在控制台使用 setGitHubToken() 设置 GitHub Token');
-        }
+        const token = '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';
 
         // 构建 API URL
-        const apiUrl = new URL(
-            `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}`
-        ).toString();
+        const apiUrl = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}`;
 
         console.log('开始上传到 GitHub...');
         console.log('请求 URL:', apiUrl);
 
-        // 准备请求数据
-        const requestData = {
-            message: `Upload ${safeFileName} to ${chapter}`,
-            content: await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result.split(',')[1]);
-                reader.onerror = (e) => reject(new Error('文件读取失败'));
-                reader.readAsDataURL(file);
-            }),
-            branch: githubConfig.branch
-        };
+        // 将文件转换为 base64
+        const base64Content = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result.split(',')[1]);
+            reader.onerror = (e) => reject(new Error('文件读取失败'));
+            reader.readAsDataURL(file);
+        });
 
         // 发送请求
         const response = await fetch(apiUrl, {
             method: 'PUT',
             headers: {
-                'Authorization': `token ${token}`,  // 改回使用 token
+                'Authorization': `token ${token}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/vnd.github.v3+json'
             },
-            body: JSON.stringify(requestData)
+            body: JSON.stringify({
+                message: `Upload ${safeFileName} to ${chapter}`,
+                content: base64Content,
+                branch: githubConfig.branch
+            })
         });
 
         // 获取响应数据
@@ -109,19 +92,7 @@ async function uploadToGithub(file, chapter) {
         if (!response.ok) {
             console.error('上传失败，状态码:', response.status);
             console.error('错误响应:', responseData);
-
-            // 处理常见错误
-            if (response.status === 401) {
-                throw new Error('GitHub Token 无效或已过期，请重新设置');
-            } else if (response.status === 403) {
-                throw new Error('没有权限访问该仓库，请检查 Token 权限');
-            } else if (response.status === 404) {
-                throw new Error('找不到指定的仓库或路径，请检查配置');
-            } else if (responseData.message) {
-                throw new Error(`GitHub API 错误: ${responseData.message}`);
-            } else {
-                throw new Error(`上传失败: HTTP ${response.status}`);
-            }
+            throw new Error(responseData.message || `上传失败: HTTP ${response.status}`);
         }
 
         console.log('文件上传成功:', responseData.content.download_url);
