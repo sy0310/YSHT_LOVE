@@ -42,24 +42,13 @@ async function uploadToGithub(file, chapter) {
             throw new Error(`文件大小超过限制：${(file.size / 1024 / 1024).toFixed(2)}MB > 100MB`);
         }
 
-        // 获取当前年份（对于情人节特辑）
-        const currentYear = '2025'; // 默认使用2025年
-        
         // 获取当前章节的照片数量，用于生成新的文件名
-        let nextPhotoNumber;
-        if (chapter === 'valentine') {
-            // 对于情人节特辑，按年份计数
-            nextPhotoNumber = (valentinePhotos[currentYear]?.length || 0) + 1;
-        } else {
-            nextPhotoNumber = photosByChapter[chapter].length + 1;
-        }
-        
+        let nextPhotoNumber = photosByChapter[chapter].length + 1;
+
         // 创建新的文件名：序号.jpg
         const newFileName = `${nextPhotoNumber}.jpg`;
-        // 对于情人节特辑，添加年份子文件夹
-        const path = chapter === 'valentine' 
-            ? `photos/${chapter}/${currentYear}/${newFileName}`
-            : `photos/${chapter}/${newFileName}`;
+        // 对于情人节特辑，直接存储在 photos/valentine/ 目录下
+        const path = `photos/${chapter}/${newFileName}`;
         
         console.log('准备上传文件:', {
             originalName: file.name,
@@ -92,7 +81,7 @@ async function uploadToGithub(file, chapter) {
         const response = await fetch(apiUrl, {
             method: 'PUT',
             headers: {
-                'Authorization': `token ${token}`,  // 改回使用 token 认证
+                'Authorization': `token ${token}`,  // 使用 token 认证
                 'Content-Type': 'application/json',
                 'Accept': 'application/vnd.github.v3+json'
             },
@@ -128,23 +117,16 @@ async function uploadToGithub(file, chapter) {
         console.log('文件上传成功:', responseData.content.download_url);
 
         // 上传成功后，更新照片数组
-        if (chapter === 'valentine') {
-            if (!valentinePhotos[currentYear]) {
-                valentinePhotos[currentYear] = [];
-            }
-            valentinePhotos[currentYear].push({
-                id: `valentine${currentYear}${nextPhotoNumber}`,
-                url: responseData.content.download_url,
-                type: file.type.startsWith('video/') ? 'video' : 'image',
-                date: new Date().toISOString(),
-                year: currentYear
-            });
-        }
+        photosByChapter.valentine.push({
+            id: `valentine${nextPhotoNumber}`,
+            url: responseData.content.download_url,
+            type: file.type.startsWith('video/') ? 'video' : 'image',
+            date: new Date().toISOString()
+        });
 
         return {
             url: responseData.content.download_url,
-            number: nextPhotoNumber,
-            year: currentYear
+            number: nextPhotoNumber
         };
 
     } catch (error) {
@@ -1040,7 +1022,7 @@ function handleValentineSection() {
 // 媒体类型过滤功能
 function filterValentineMedia(type) {
     const mediaGrid = document.querySelector('.valentine-media-grid');
-    const photos = Object.values(valentinePhotos).flat(); // 确保读取所有年份的照片
+    const photos = photosByChapter.valentine; // 直接读取 valentine 中的照片
     
     // 更新标签状态
     document.querySelectorAll('.media-tab').forEach(tab => {
