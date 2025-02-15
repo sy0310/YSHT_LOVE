@@ -47,23 +47,39 @@ function setGitHubToken(token) {
 // 修改文件上传函数
 async function uploadToGithub(file, chapter) {
     try {
+        // 检查文件大小（GitHub API 限制为100MB）
+        const maxSize = 100 * 1024 * 1024; // 100MB
+        if (file.size > maxSize) {
+            throw new Error(`文件大小超过限制：${(file.size / 1024 / 1024).toFixed(2)}MB > 100MB`);
+        }
+
         // 创建唯一的文件名
         const timestamp = new Date().getTime();
         const fileName = `${timestamp}_${file.name}`;
         const path = `photos/${chapter}/${fileName}`;
         
+        console.log('准备上传文件:', {
+            fileName: fileName,
+            path: path,
+            size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+            type: file.type
+        });
+
         // 将文件转换为 base64
         const reader = new FileReader();
-        const base64Content = await new Promise((resolve) => {
+        const base64Content = await new Promise((resolve, reject) => {
             reader.onload = (e) => resolve(e.target.result.split(',')[1]);
+            reader.onerror = (e) => reject(new Error('文件读取失败'));
             reader.readAsDataURL(file);
         });
 
-        // 从本地存储或环境变量获取 token
-        const token = localStorage.getItem('github_token') || process.env.GITHUB_TOKEN;
+        // 从本地存储获取 token
+        const token = localStorage.getItem('github_token');
         if (!token) {
-            throw new Error('GitHub token not found');
+            throw new Error('请先在控制台使用 setGitHubToken() 设置 GitHub Token');
         }
+
+        console.log('开始上传到 GitHub...');
 
         // 准备 GitHub API 请求
         const response = await fetch(
@@ -83,21 +99,30 @@ async function uploadToGithub(file, chapter) {
             }
         );
 
+        const responseData = await response.json();
+
         if (!response.ok) {
-            const errorData = await response.json();
-            console.error('GitHub API 错误:', errorData);
-            throw new Error(`Upload failed: ${errorData.message}`);
+            console.error('GitHub API 错误响应:', responseData);
+            if (responseData.message.includes('API rate limit exceeded')) {
+                throw new Error('GitHub API 调用次数超限，请稍后再试');
+            } else if (responseData.message.includes('Bad credentials')) {
+                throw new Error('GitHub Token 无效，请重新设置');
+            } else {
+                throw new Error(`上传失败: ${responseData.message}`);
+            }
         }
 
-        const data = await response.json();
-        return data.content.download_url;
+        console.log('文件上传成功:', responseData.content.download_url);
+        return responseData.content.download_url;
+
     } catch (error) {
-        console.error('上传错误:', error);
-        throw error;
+        console.error('上传错误详情:', error);
+        // 抛出用户友好的错误信息
+        throw new Error(error.message || '上传失败，请检查网络连接或重试');
     }
 }
 
-// 修改现有的上传处理函数
+// 修改文件上传处理函数
 function handleFileUpload(chapter) {
     const input = document.createElement('input');
     input.type = 'file';
@@ -112,7 +137,7 @@ function handleFileUpload(chapter) {
         const progressDiv = document.createElement('div');
         progressDiv.className = 'upload-progress';
         progressDiv.innerHTML = `
-            <div>正在上传文件...</div>
+            <div class="upload-status">准备上传文件...</div>
             <div class="progress-bar">
                 <div class="progress-fill"></div>
             </div>
@@ -121,6 +146,7 @@ function handleFileUpload(chapter) {
         progressDiv.style.display = 'block';
         
         const progressBar = progressDiv.querySelector('.progress-fill');
+        const statusText = progressDiv.querySelector('.upload-status');
 
         try {
             for (let i = 0; i < files.length; i++) {
@@ -129,6 +155,7 @@ function handleFileUpload(chapter) {
                 // 更新进度
                 const progress = ((i + 1) / files.length) * 100;
                 progressBar.style.width = `${progress}%`;
+                statusText.textContent = `正在上传第 ${i + 1}/${files.length} 个文件...`;
 
                 // 上传到 GitHub
                 const fileUrl = await uploadToGithub(file, chapter);
@@ -142,6 +169,7 @@ function handleFileUpload(chapter) {
             }
 
             // 完成上传
+            statusText.textContent = '上传完成！';
             progressBar.style.width = '100%';
             
             // 刷新显示
@@ -149,12 +177,13 @@ function handleFileUpload(chapter) {
             
             setTimeout(() => {
                 progressDiv.remove();
-            }, 1000);
+            }, 2000);
 
         } catch (error) {
             console.error('上传失败:', error);
-            progressDiv.innerHTML = '上传失败，请重试';
-            setTimeout(() => progressDiv.remove(), 3000);
+            statusText.textContent = error.message;
+            progressBar.style.backgroundColor = '#ff4444';
+            setTimeout(() => progressDiv.remove(), 5000);
         }
     };
 
