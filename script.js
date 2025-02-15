@@ -25,11 +25,12 @@ const valentinePhotos = {
     '2027': []
 };
 
-// 添加 GitHub API 配置
+// 修改 GitHub API 配置
 const githubConfig = {
     owner: 'sy0310',              // 你的 GitHub 用户名
     repo: 'YSHT_LOVE',           // 你的仓库名
-    branch: 'main'               // 分支名
+    branch: 'main',               // 分支名
+    token: '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'  // 你的新 token
 };
 
 // 修改文件上传函数
@@ -57,8 +58,11 @@ async function uploadToGithub(file, chapter) {
             type: file.type
         });
 
-        // 从本地存储获取 token
-        const token = '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';
+        // 使用配置中的 token
+        const token = githubConfig.token;
+        if (!token) {
+            throw new Error('GitHub token not found');
+        }
 
         // 构建 API URL
         const apiUrl = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}`;
@@ -77,7 +81,7 @@ async function uploadToGithub(file, chapter) {
         const response = await fetch(apiUrl, {
             method: 'PUT',
             headers: {
-                'Authorization': `token ${token}`,
+                'Authorization': `Bearer ${token}`,  // 使用 Bearer 认证
                 'Content-Type': 'application/json',
                 'Accept': 'application/vnd.github.v3+json'
             },
@@ -88,13 +92,27 @@ async function uploadToGithub(file, chapter) {
             })
         });
 
-        const responseData = await response.json();
-
+        // 添加更详细的错误处理
         if (!response.ok) {
-            console.error('上传失败，状态码:', response.status);
-            console.error('错误响应:', responseData);
-            throw new Error(responseData.message || `上传失败: HTTP ${response.status}`);
+            const errorData = await response.json();
+            console.error('GitHub API 错误:', {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorData
+            });
+            
+            if (response.status === 401) {
+                throw new Error('GitHub Token 无效或已过期，请更新 token');
+            } else if (response.status === 403) {
+                throw new Error('没有权限访问该仓库，请检查 token 权限');
+            } else if (response.status === 404) {
+                throw new Error('找不到指定的仓库或路径，请检查配置');
+            } else {
+                throw new Error(errorData.message || `上传失败: HTTP ${response.status}`);
+            }
         }
+
+        const responseData = await response.json();
 
         console.log('文件上传成功:', responseData.content.download_url);
         return {
@@ -104,7 +122,7 @@ async function uploadToGithub(file, chapter) {
 
     } catch (error) {
         console.error('上传错误详情:', error);
-        throw new Error(error.message || '上传失败，请检查网络连接或重试');
+        throw error; // 直接抛出原始错误，保留详细信息
     }
 }
 
