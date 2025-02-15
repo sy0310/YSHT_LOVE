@@ -158,11 +158,9 @@ function handleFileUpload(chapter) {
             statusText.textContent = '上传完成！';
             progressBar.style.width = '100%';
             
-            // 刷新显示
+            // 完成上传后的刷新显示
             if (chapter === 'valentine') {
-                const valentineContent = document.querySelector('.valentine-content');
-                valentineContent.innerHTML = '';
-                valentineContent.appendChild(createValentineGrid(photosByChapter.valentine));
+                filterValentineMedia('all');
             } else {
                 initSlideshow();
             }
@@ -300,29 +298,18 @@ function deleteComment(photoId, commentId) {
 // 切换章节
 function switchChapter(chapter) {
     // 移除所有章节的 active 类
-    document.querySelectorAll('.chapter').forEach(ch => {
+    document.querySelectorAll('.story-chapters .chapter').forEach(ch => {
         ch.classList.remove('active');
     });
     
     // 为当前章节添加 active 类
-    document.querySelector(`.chapter[data-chapter="${chapter}"]`).classList.add('active');
+    document.querySelector(`.story-chapters .chapter[data-chapter="${chapter}"]`).classList.add('active');
     
     currentChapter = chapter;
     
-    // 如果是情人节特辑，显示在特别篇区域
-    if (chapter === 'valentine') {
-        // 隐藏幻灯片容器
-        document.querySelector('.slideshow-container').style.display = 'none';
-        // 显示情人节特辑内容
-        const valentineContent = document.querySelector('.valentine-content');
-        valentineContent.innerHTML = '';
-        valentineContent.appendChild(createValentineGrid(photosByChapter[chapter]));
-    } else {
-        // 显示幻灯片容器
-        document.querySelector('.slideshow-container').style.display = 'block';
-        // 初始化幻灯片
-        initSlideshow();
-    }
+    // 显示幻灯片容器，因为情人节特辑不会使用这个函数
+    document.querySelector('.slideshow-container').style.display = 'block';
+    initSlideshow();
 }
 
 // 修改缩略图网格创建函数
@@ -989,7 +976,16 @@ function addMovePhotoFeature() {
     addPhotoSelection();
 }
 
-// 添加媒体类型过滤功能
+// 情人节特辑处理函数
+function handleValentineSection() {
+    // 隐藏主幻灯片容器
+    document.querySelector('.slideshow-container').style.display = 'none';
+    
+    // 更新媒体网格
+    filterValentineMedia('all');
+}
+
+// 媒体类型过滤功能
 function filterValentineMedia(type) {
     const mediaGrid = document.querySelector('.valentine-media-grid');
     const photos = photosByChapter.valentine;
@@ -1003,29 +999,11 @@ function filterValentineMedia(type) {
     mediaGrid.innerHTML = '';
     
     // 过滤并显示媒体
-    photos.forEach(item => {
-        if (type === 'all' || item.type === type) {
-            const mediaItem = document.createElement('div');
-            mediaItem.className = `media-item ${item.type}`;
-            
-            if (item.type === 'video') {
-                const video = createVideo(item);
-                mediaItem.appendChild(video);
-            } else {
-                const img = createImage(item);
-                mediaItem.appendChild(img);
-            }
-            
-            mediaItem.addEventListener('click', () => {
-                openLightbox(item);
-            });
-            
-            mediaGrid.appendChild(mediaItem);
-        }
-    });
+    const filteredPhotos = photos.filter(item => 
+        type === 'all' || item.type === type
+    );
     
-    // 显示空状态
-    if (mediaGrid.children.length === 0) {
+    if (filteredPhotos.length === 0) {
         mediaGrid.innerHTML = `
             <div class="empty-message">
                 <div class="upload-hint">
@@ -1035,24 +1013,45 @@ function filterValentineMedia(type) {
                 </div>
             </div>
         `;
+        return;
     }
+    
+    filteredPhotos.forEach(item => {
+        const mediaItem = document.createElement('div');
+        mediaItem.className = `media-item ${item.type || 'image'}`;
+        
+        if (item.type === 'video') {
+            const video = createVideo(item);
+            mediaItem.appendChild(video);
+        } else {
+            const img = createImage(item);
+            mediaItem.appendChild(img);
+        }
+        
+        mediaItem.addEventListener('click', () => {
+            openLightbox(item);
+        });
+        
+        mediaGrid.appendChild(mediaItem);
+    });
 }
 
 // 修改页面加载事件
 document.addEventListener('DOMContentLoaded', () => {
-    // 为所有章节添加点击事件
-    document.querySelectorAll('.chapter').forEach(chapter => {
+    // 为主章节添加点击事件
+    document.querySelectorAll('.story-chapters .chapter').forEach(chapter => {
         chapter.addEventListener('click', () => {
-            // 如果是情人节特辑，不要切换到幻灯片模式
-            if (chapter.dataset.chapter === 'valentine') {
-                // 直接显示情人节特辑内容
-                const valentineContent = document.querySelector('.valentine-content');
-                valentineContent.innerHTML = '';
-                valentineContent.appendChild(createValentineGrid(photosByChapter.valentine));
-            } else {
-                switchChapter(chapter.dataset.chapter);
-            }
+            switchChapter(chapter.dataset.chapter);
         });
+    });
+    
+    // 为情人节特辑添加单独的点击事件
+    document.querySelector('.valentine-section .chapter').addEventListener('click', () => {
+        // 移除主章节的 active 状态
+        document.querySelectorAll('.story-chapters .chapter').forEach(ch => {
+            ch.classList.remove('active');
+        });
+        handleValentineSection();
     });
     
     initSlideshow();
@@ -1092,9 +1091,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     // 修改情人节特辑上传功能
-    const valentineUploadBtn = document.getElementById('valentineUpload');
-    valentineUploadBtn.addEventListener('click', () => {
-        handleFileUpload('valentine');
+    const valentineUpload = document.getElementById('valentineUpload');
+    valentineUpload.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+        
+        // 处理上传
+        await handleFileUpload('valentine');
+        // 刷新情人节特辑显示
+        filterValentineMedia('all');
     });
     
     // 初始化照片移动功能
