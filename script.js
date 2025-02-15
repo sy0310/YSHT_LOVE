@@ -35,19 +35,23 @@ const githubConfig = {
 // 修改文件上传函数
 async function uploadToGithub(file, chapter) {
     try {
-        // 检查文件大小（GitHub API 限制为100MB）
-        const maxSize = 100 * 1024 * 1024; // 100MB
+        // 检查文件大小
+        const maxSize = 100 * 1024 * 1024;
         if (file.size > maxSize) {
             throw new Error(`文件大小超过限制：${(file.size / 1024 / 1024).toFixed(2)}MB > 100MB`);
         }
 
-        // 创建唯一的文件名，并进行 URL 编码
-        const timestamp = new Date().getTime();
-        const safeFileName = encodeURIComponent(`${timestamp}_${file.name}`);
-        const path = `photos/${chapter}/${safeFileName}`;
+        // 获取当前章节的照片数量，用于生成新的文件名
+        const currentPhotos = photosByChapter[chapter];
+        const nextPhotoNumber = currentPhotos.length + 1;
+        
+        // 创建新的文件名：序号.jpg
+        const newFileName = `${nextPhotoNumber}.jpg`;
+        const path = `photos/${chapter}/${newFileName}`;
         
         console.log('准备上传文件:', {
-            fileName: safeFileName,
+            originalName: file.name,
+            newName: newFileName,
             path: path,
             size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
             type: file.type
@@ -60,7 +64,6 @@ async function uploadToGithub(file, chapter) {
         const apiUrl = `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}`;
 
         console.log('开始上传到 GitHub...');
-        console.log('请求 URL:', apiUrl);
 
         // 将文件转换为 base64
         const base64Content = await new Promise((resolve, reject) => {
@@ -79,15 +82,13 @@ async function uploadToGithub(file, chapter) {
                 'Accept': 'application/vnd.github.v3+json'
             },
             body: JSON.stringify({
-                message: `Upload ${safeFileName} to ${chapter}`,
+                message: `Upload ${newFileName} to ${chapter}`,
                 content: base64Content,
                 branch: githubConfig.branch
             })
         });
 
-        // 获取响应数据
         const responseData = await response.json();
-        console.log('GitHub API 响应:', responseData);
 
         if (!response.ok) {
             console.error('上传失败，状态码:', response.status);
@@ -96,7 +97,10 @@ async function uploadToGithub(file, chapter) {
         }
 
         console.log('文件上传成功:', responseData.content.download_url);
-        return responseData.content.download_url;
+        return {
+            url: responseData.content.download_url,
+            number: nextPhotoNumber
+        };
 
     } catch (error) {
         console.error('上传错误详情:', error);
@@ -140,12 +144,12 @@ function handleFileUpload(chapter) {
                 statusText.textContent = `正在上传第 ${i + 1}/${files.length} 个文件...`;
 
                 // 上传到 GitHub
-                const fileUrl = await uploadToGithub(file, chapter);
+                const uploadResult = await uploadToGithub(file, chapter);
                 
                 // 添加到照片数组
                 photosByChapter[chapter].push({
-                    id: `${chapter}${photosByChapter[chapter].length + 1}`,
-                    url: fileUrl,
+                    id: `${chapter}${uploadResult.number}`,
+                    url: uploadResult.url,
                     date: new Date().toISOString()
                 });
             }
@@ -155,7 +159,13 @@ function handleFileUpload(chapter) {
             progressBar.style.width = '100%';
             
             // 刷新显示
-            initSlideshow();
+            if (chapter === 'valentine') {
+                const valentineContent = document.querySelector('.valentine-content');
+                valentineContent.innerHTML = '';
+                valentineContent.appendChild(createValentineGrid(photosByChapter.valentine));
+            } else {
+                initSlideshow();
+            }
             
             setTimeout(() => {
                 progressDiv.remove();
@@ -289,12 +299,30 @@ function deleteComment(photoId, commentId) {
 
 // 切换章节
 function switchChapter(chapter) {
-    currentChapter = chapter;
-    const chapters = document.querySelectorAll('.chapter');
-    chapters.forEach(c => {
-        c.classList.toggle('active', c.dataset.chapter === chapter);
+    // 移除所有章节的 active 类
+    document.querySelectorAll('.chapter').forEach(ch => {
+        ch.classList.remove('active');
     });
-    initSlideshow();
+    
+    // 为当前章节添加 active 类
+    document.querySelector(`.chapter[data-chapter="${chapter}"]`).classList.add('active');
+    
+    currentChapter = chapter;
+    
+    // 如果是情人节特辑，显示在特别篇区域
+    if (chapter === 'valentine') {
+        // 隐藏幻灯片容器
+        document.querySelector('.slideshow-container').style.display = 'none';
+        // 显示情人节特辑内容
+        const valentineContent = document.querySelector('.valentine-content');
+        valentineContent.innerHTML = '';
+        valentineContent.appendChild(createValentineGrid(photosByChapter[chapter]));
+    } else {
+        // 显示幻灯片容器
+        document.querySelector('.slideshow-container').style.display = 'block';
+        // 初始化幻灯片
+        initSlideshow();
+    }
 }
 
 // 修改缩略图网格创建函数
@@ -569,27 +597,7 @@ function initSlideshow() {
         return;
     }
 
-    // 如果是情人节特辑，直接显示网格
-    if (currentChapter === 'valentine') {
-        const slide = document.createElement('div');
-        slide.className = 'slide';
-        slide.style.position = 'absolute';
-        slide.style.left = '0';
-        slide.appendChild(createValentineGrid(photos));
-        slidesWrapper.appendChild(slide);
-        
-        // 隐藏导航按钮
-        prevButton.style.display = 'none';
-        nextButton.style.display = 'none';
-        
-        // 隐藏返回按钮
-        const backToGridBtn = document.getElementById('backToGrid');
-        backToGridBtn.style.display = 'none';
-        
-        return;
-    }
-
-    // 其他章节显示幻灯片
+    // 显示导航按钮和返回按钮（情人节特辑不会进入这个函数）
     prevButton.style.display = 'block';
     nextButton.style.display = 'block';
     document.getElementById('backToGrid').style.display = 'block';
@@ -615,9 +623,7 @@ function initSlideshow() {
     updateSlide = function(newIndex) {
         currentSlide = newIndex;
         slidesWrapper.style.transform = `translateX(-${currentSlide * 100}%)`;
-        if (currentChapter !== 'valentine') {
-            displayComments(photos[currentSlide].id);
-        }
+        displayComments(photos[currentSlide].id);
     };
 
     // 初始化显示
@@ -985,9 +991,18 @@ function addMovePhotoFeature() {
 
 // 修改页面加载事件
 document.addEventListener('DOMContentLoaded', () => {
+    // 为所有章节添加点击事件
     document.querySelectorAll('.chapter').forEach(chapter => {
         chapter.addEventListener('click', () => {
-            switchChapter(chapter.dataset.chapter);
+            // 如果是情人节特辑，不要切换到幻灯片模式
+            if (chapter.dataset.chapter === 'valentine') {
+                // 直接显示情人节特辑内容
+                const valentineContent = document.querySelector('.valentine-content');
+                valentineContent.innerHTML = '';
+                valentineContent.appendChild(createValentineGrid(photosByChapter.valentine));
+            } else {
+                switchChapter(chapter.dataset.chapter);
+            }
         });
     });
     
