@@ -7,44 +7,95 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div class="floating-hearts">
+        <!-- 爱心会通过 JavaScript 动态添加 -->
+    </div>
     <div class="container">
         <header>
             <h1>我们的故事</h1>
+            <div class="story-intro">
+                <p>十二年的时光，从懵懂到成熟，从相遇到重逢</p>
+                <p>这一路，有你真好</p>
+            </div>
             <div class="music-player">
-                <audio id="bgMusic" loop>
-                    <source src="path/to/your/music.mp3" type="audio/mp3">
-                </audio>
-                <button id="musicToggle">🎵</button>
+                <div class="music-list">
+                    <audio id="bgMusic" loop preload="auto">
+                        <source src="music/1.mp3" type="audio/mp3">
+                    </audio>
+                    <select id="musicSelect">
+                        <option value="1.mp3">唯一</option>
+                        <option value="2.mp3">那个男孩</option>
+                        <option value="3.mp3">我想念</option>
+                        <option value="4.mp3">流沙</option>
+                        <option value="5.mp3">达尔文</option>
+                    </select>
+                </div>
+                <button id="musicToggle" class="music-btn">
+                    <span class="music-icon">🎵</span>
+                </button>
             </div>
         </header>
 
+        <div class="story-chapters">
+            <div class="chapter active" data-chapter="heart">
+                三年心动 (2013-2016)
+                <button class="upload-btn" onclick="handleFileUpload('heart')">上传照片</button>
+            </div>
+            <div class="chapter" data-chapter="wait">
+                九年沉淀 (2016-2024)
+                <button class="upload-btn" onclick="handleFileUpload('wait')">上传照片</button>
+            </div>
+            <div class="chapter" data-chapter="future">
+                未来（2025-至今）
+                <button class="upload-btn" onclick="handleFileUpload('future')">上传照片</button>
+            </div>
+        </div>
+
         <div class="slideshow-container">
             <div class="slides">
-                <!-- 照片会通过 JavaScript 动态添加 -->
+                <div class="slides-wrapper">
+                    <!-- 照片会通过 JavaScript 动态添加 -->
+                </div>
+                <button class="slide-button prev" id="prevSlide">❮</button>
+                <button class="slide-button next" id="nextSlide">❯</button>
             </div>
-            <div class="slide-description"></div>
-            <div class="slide-comments">
-                <h3>评论</h3>
-                <div class="comments-container"></div>
+            <div class="comments-section">
                 <div class="comment-form">
-                    <input type="text" id="commentName" placeholder="你的名字">
-                    <textarea id="commentContent" placeholder="写下你的评论..."></textarea>
-                    <button id="submitComment">发表评论</button>
+                    <textarea id="commentContent" placeholder="写下这张照片的故事..."></textarea>
+                    <button id="submitComment">发布</button>
+                </div>
+                <div class="comments-container">
+                    <!-- 评论会通过 JavaScript 动态添加 -->
                 </div>
             </div>
-        </div>
-
-        <div class="story-section">
-            <h2>我们的点点滴滴</h2>
-            <div class="timeline">
-                <!-- 故事时间线会通过 JavaScript 动态添加 -->
+            <div class="back-to-grid">
+                <button id="backToGrid" class="back-to-grid-btn">
+                    <span>返回相册</span>
+                </button>
             </div>
         </div>
 
-        <div class="family-stories">
-            <h2>家人的祝福</h2>
-            <div class="stories-container">
-                <!-- 家人故事会通过 JavaScript 动态添加 -->
+        <div class="special-section">
+            <h2>特别篇</h2>
+            <div class="valentine-section">
+                <div class="valentine-header">
+                    <div class="chapter" data-chapter="valentine">情人节特辑</div>
+                    <div class="upload-section">
+                        <label class="upload-btn" for="valentineUpload">
+                            <span>上传照片/视频</span>
+                            <input type="file" id="valentineUpload" accept="image/*,video/*" multiple style="display: none;">
+                        </label>
+                    </div>
+                </div>
+                <div class="year-tabs">
+                    <button class="year-tab active" data-year="all">全部</button>
+                    <button class="year-tab" data-year="2025">2025</button>
+                    <button class="year-tab" data-year="2026">2026</button>
+                    <button class="year-tab" data-year="2027">2027</button>
+                </div>
+                <div class="valentine-content">
+                    <!-- 内容会通过 JavaScript 动态添加 -->
+                </div>
             </div>
         </div>
     </div>
