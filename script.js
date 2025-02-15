@@ -1040,7 +1040,7 @@ function handleValentineSection() {
 // 媒体类型过滤功能
 function filterValentineMedia(type) {
     const mediaGrid = document.querySelector('.valentine-media-grid');
-    const photos = photosByChapter.valentine;
+    const photos = Object.values(valentinePhotos).flat(); // 确保读取所有年份的照片
     
     // 更新标签状态
     document.querySelectorAll('.media-tab').forEach(tab => {
