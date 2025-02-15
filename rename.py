@@ -3,7 +3,7 @@ import shutil
 import re
 
 # 要处理的文件夹
-folders = ['heart', 'wait', 'love', 'valentine']
+folders = ['heart', 'wait', 'future', 'valentine']
 
 # 获取当前脚本所在目录
 current_dir = os.path.dirname(os.path.abspath(__file__))
