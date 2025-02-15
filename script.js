@@ -989,6 +989,55 @@ function addMovePhotoFeature() {
     addPhotoSelection();
 }
 
+// 添加媒体类型过滤功能
+function filterValentineMedia(type) {
+    const mediaGrid = document.querySelector('.valentine-media-grid');
+    const photos = photosByChapter.valentine;
+    
+    // 更新标签状态
+    document.querySelectorAll('.media-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.type === type);
+    });
+    
+    // 清空网格
+    mediaGrid.innerHTML = '';
+    
+    // 过滤并显示媒体
+    photos.forEach(item => {
+        if (type === 'all' || item.type === type) {
+            const mediaItem = document.createElement('div');
+            mediaItem.className = `media-item ${item.type}`;
+            
+            if (item.type === 'video') {
+                const video = createVideo(item);
+                mediaItem.appendChild(video);
+            } else {
+                const img = createImage(item);
+                mediaItem.appendChild(img);
+            }
+            
+            mediaItem.addEventListener('click', () => {
+                openLightbox(item);
+            });
+            
+            mediaGrid.appendChild(mediaItem);
+        }
+    });
+    
+    // 显示空状态
+    if (mediaGrid.children.length === 0) {
+        mediaGrid.innerHTML = `
+            <div class="empty-message">
+                <div class="upload-hint">
+                    <div class="icon">📸</div>
+                    <div class="text">还没有${type === 'video' ? '视频' : type === 'image' ? '照片' : '内容'}</div>
+                    <div class="sub-text">点击上方的上传按钮添加</div>
+                </div>
+            </div>
+        `;
+    }
+}
+
 // 修改页面加载事件
 document.addEventListener('DOMContentLoaded', () => {
     // 为所有章节添加点击事件
@@ -1050,4 +1099,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 初始化照片移动功能
     addMovePhotoFeature();
+    
+    // 添加媒体类型过滤事件
+    document.querySelectorAll('.media-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            filterValentineMedia(tab.dataset.type);
+        });
+    });
+    
+    // 初始显示所有媒体
+    filterValentineMedia('all');
 }); 
