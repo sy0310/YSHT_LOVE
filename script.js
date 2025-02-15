@@ -42,13 +42,24 @@ async function uploadToGithub(file, chapter) {
             throw new Error(`文件大小超过限制：${(file.size / 1024 / 1024).toFixed(2)}MB > 100MB`);
         }
 
+        // 获取当前年份（对于情人节特辑）
+        const currentYear = '2025'; // 默认使用2025年
+        
         // 获取当前章节的照片数量，用于生成新的文件名
-        const currentPhotos = photosByChapter[chapter];
-        const nextPhotoNumber = currentPhotos.length + 1;
+        let nextPhotoNumber;
+        if (chapter === 'valentine') {
+            // 对于情人节特辑，按年份计数
+            nextPhotoNumber = (valentinePhotos[currentYear]?.length || 0) + 1;
+        } else {
+            nextPhotoNumber = photosByChapter[chapter].length + 1;
+        }
         
         // 创建新的文件名：序号.jpg
         const newFileName = `${nextPhotoNumber}.jpg`;
-        const path = `photos/${chapter}/${newFileName}`;
+        // 对于情人节特辑，添加年份子文件夹
+        const path = chapter === 'valentine' 
+            ? `photos/${chapter}/${currentYear}/${newFileName}`
+            : `photos/${chapter}/${newFileName}`;
         
         console.log('准备上传文件:', {
             originalName: file.name,
@@ -115,14 +126,30 @@ async function uploadToGithub(file, chapter) {
         const responseData = await response.json();
 
         console.log('文件上传成功:', responseData.content.download_url);
+
+        // 上传成功后，更新照片数组
+        if (chapter === 'valentine') {
+            if (!valentinePhotos[currentYear]) {
+                valentinePhotos[currentYear] = [];
+            }
+            valentinePhotos[currentYear].push({
+                id: `valentine${currentYear}${nextPhotoNumber}`,
+                url: responseData.content.download_url,
+                type: file.type.startsWith('video/') ? 'video' : 'image',
+                date: new Date().toISOString(),
+                year: currentYear
+            });
+        }
+
         return {
             url: responseData.content.download_url,
-            number: nextPhotoNumber
+            number: nextPhotoNumber,
+            year: currentYear
         };
 
     } catch (error) {
         console.error('上传错误详情:', error);
-        throw error; // 直接抛出原始错误，保留详细信息
+        throw error;
     }
 }
 
@@ -165,11 +192,18 @@ function handleFileUpload(chapter) {
                 const uploadResult = await uploadToGithub(file, chapter);
                 
                 // 添加到照片数组
-                photosByChapter[chapter].push({
-                    id: `${chapter}${uploadResult.number}`,
-                    url: uploadResult.url,
-                    date: new Date().toISOString()
-                });
+                if (chapter === 'valentine') {
+                    // 情人节特辑的照片已经在 uploadToGithub 中添加到 valentinePhotos
+                    photosByChapter.valentine = Object.values(valentinePhotos)
+                        .flat()
+                        .sort((a, b) => new Date(b.date) - new Date(a.date));
+                } else {
+                    photosByChapter[chapter].push({
+                        id: `${chapter}${uploadResult.number}`,
+                        url: uploadResult.url,
+                        date: new Date().toISOString()
+                    });
+                }
             }
 
             // 完成上传
