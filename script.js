@@ -27,11 +27,22 @@ const valentinePhotos = {
 
 // 添加 GitHub API 配置
 const githubConfig = {
-    owner: 'Lixiaoxing666',        // 你的 GitHub 用户名
-    repo: 'love-story',            // 你的仓库名
-    branch: 'main',                // 分支名
-    token: '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'
+    owner: 'sy0310',              // 你的 GitHub 用户名
+    repo: 'YSHT_LOVE',           // 你的仓库名
+    branch: 'main'               // 分支名
 };
+
+// 添加设置 token 的函数
+function setGitHubToken(token) {
+    if (token && typeof token === 'string' && token.length > 0) {
+        localStorage.setItem('github_token', token);
+        return true;
+    }
+    return false;
+}
+
+// 在控制台中使用这个函数来设置 token
+// setGitHubToken('your-token-here');
 
 // 修改文件上传函数
 async function uploadToGithub(file, chapter) {
@@ -48,13 +59,19 @@ async function uploadToGithub(file, chapter) {
             reader.readAsDataURL(file);
         });
 
+        // 从本地存储或环境变量获取 token
+        const token = localStorage.getItem('github_token') || process.env.GITHUB_TOKEN;
+        if (!token) {
+            throw new Error('GitHub token not found');
+        }
+
         // 准备 GitHub API 请求
         const response = await fetch(
             `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}`,
             {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `token ${githubConfig.token}`,
+                    'Authorization': `token ${token}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/vnd.github.v3+json'
                 },
