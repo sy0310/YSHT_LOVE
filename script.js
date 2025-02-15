@@ -27,9 +27,10 @@ const valentinePhotos = {
 
 // 添加 GitHub API 配置
 const githubConfig = {
-    owner: 'your-username',        // 你的 GitHub 用户名
-    repo: 'your-repo-name',       // 你的仓库名
-    branch: 'main',               // 分支名
+    owner: 'Lixiaoxing666',        // 你的 GitHub 用户名
+    repo: 'love-story',            // 你的仓库名
+    branch: 'main',                // 分支名
+    token: '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'
 };
 
 // 修改文件上传函数
@@ -47,17 +48,15 @@ async function uploadToGithub(file, chapter) {
             reader.readAsDataURL(file);
         });
 
-        // 从后端获取 token
-        const token = await fetch('/api/github-token').then(res => res.text());
-
         // 准备 GitHub API 请求
         const response = await fetch(
             `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}`,
             {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `token ${token}`,
+                    'Authorization': `token ${githubConfig.token}`,
                     'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github.v3+json'
                 },
                 body: JSON.stringify({
                     message: `Upload ${fileName} to ${chapter}`,
@@ -68,13 +67,15 @@ async function uploadToGithub(file, chapter) {
         );
 
         if (!response.ok) {
-            throw new Error('Upload failed');
+            const errorData = await response.json();
+            console.error('GitHub API 错误:', errorData);
+            throw new Error(`Upload failed: ${errorData.message}`);
         }
 
         const data = await response.json();
         return data.content.download_url;
     } catch (error) {
-        console.error('Upload error:', error);
+        console.error('上传错误:', error);
         throw error;
     }
 }
