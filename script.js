@@ -30,7 +30,7 @@ const githubConfig = {
     owner: 'sy0310',              // 你的 GitHub 用户名
     repo: 'YSHT_LOVE',           // 你的仓库名
     branch: 'main',               // 分支名
-    token: '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'  // 你的新 token
+    token: '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'  // 新的 token
 };
 
 // 修改文件上传函数
@@ -92,7 +92,7 @@ async function uploadToGithub(file, chapter) {
         const response = await fetch(apiUrl, {
             method: 'PUT',
             headers: {
-                'Authorization': `Bearer ${token}`,  // 使用 Bearer 认证
+                'Authorization': `token ${token}`,  // 改回使用 token 认证
                 'Content-Type': 'application/json',
                 'Accept': 'application/vnd.github.v3+json'
             },
