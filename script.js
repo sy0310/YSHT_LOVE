@@ -53,24 +53,16 @@ async function uploadToGithub(file, chapter) {
             throw new Error(`文件大小超过限制：${(file.size / 1024 / 1024).toFixed(2)}MB > 100MB`);
         }
 
-        // 创建唯一的文件名
+        // 创建唯一的文件名，并进行 URL 编码
         const timestamp = new Date().getTime();
-        const fileName = `${timestamp}_${file.name}`;
-        const path = `photos/${chapter}/${fileName}`;
+        const safeFileName = encodeURIComponent(`${timestamp}_${file.name}`);
+        const path = `photos/${chapter}/${safeFileName}`;
         
         console.log('准备上传文件:', {
-            fileName: fileName,
+            fileName: safeFileName,
             path: path,
             size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
             type: file.type
-        });
-
-        // 将文件转换为 base64
-        const reader = new FileReader();
-        const base64Content = await new Promise((resolve, reject) => {
-            reader.onload = (e) => resolve(e.target.result.split(',')[1]);
-            reader.onerror = (e) => reject(new Error('文件读取失败'));
-            reader.readAsDataURL(file);
         });
 
         // 从本地存储获取 token
@@ -79,36 +71,56 @@ async function uploadToGithub(file, chapter) {
             throw new Error('请先在控制台使用 setGitHubToken() 设置 GitHub Token');
         }
 
+        // 构建 API URL
+        const apiUrl = new URL(
+            `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}`
+        ).toString();
+
         console.log('开始上传到 GitHub...');
+        console.log('请求 URL:', apiUrl);
 
-        // 准备 GitHub API 请求
-        const response = await fetch(
-            `https://api.github.com/repos/${githubConfig.owner}/${githubConfig.repo}/contents/${path}`,
-            {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/vnd.github.v3+json'
-                },
-                body: JSON.stringify({
-                    message: `Upload ${fileName} to ${chapter}`,
-                    content: base64Content,
-                    branch: githubConfig.branch
-                })
-            }
-        );
+        // 准备请求数据
+        const requestData = {
+            message: `Upload ${safeFileName} to ${chapter}`,
+            content: await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result.split(',')[1]);
+                reader.onerror = (e) => reject(new Error('文件读取失败'));
+                reader.readAsDataURL(file);
+            }),
+            branch: githubConfig.branch
+        };
 
+        // 发送请求
+        const response = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${token}`,  // 改回使用 token
+                'Content-Type': 'application/json',
+                'Accept': 'application/vnd.github.v3+json'
+            },
+            body: JSON.stringify(requestData)
+        });
+
+        // 获取响应数据
         const responseData = await response.json();
+        console.log('GitHub API 响应:', responseData);
 
         if (!response.ok) {
-            console.error('GitHub API 错误响应:', responseData);
-            if (responseData.message.includes('API rate limit exceeded')) {
-                throw new Error('GitHub API 调用次数超限，请稍后再试');
-            } else if (responseData.message.includes('Bad credentials')) {
-                throw new Error('GitHub Token 无效，请重新设置');
+            console.error('上传失败，状态码:', response.status);
+            console.error('错误响应:', responseData);
+
+            // 处理常见错误
+            if (response.status === 401) {
+                throw new Error('GitHub Token 无效或已过期，请重新设置');
+            } else if (response.status === 403) {
+                throw new Error('没有权限访问该仓库，请检查 Token 权限');
+            } else if (response.status === 404) {
+                throw new Error('找不到指定的仓库或路径，请检查配置');
+            } else if (responseData.message) {
+                throw new Error(`GitHub API 错误: ${responseData.message}`);
             } else {
-                throw new Error(`上传失败: ${responseData.message}`);
+                throw new Error(`上传失败: HTTP ${response.status}`);
             }
         }
 
@@ -117,7 +129,6 @@ async function uploadToGithub(file, chapter) {
 
     } catch (error) {
         console.error('上传错误详情:', error);
-        // 抛出用户友好的错误信息
         throw new Error(error.message || '上传失败，请检查网络连接或重试');
     }
 }
