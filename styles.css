@@ -1643,4 +1643,123 @@ header::before {
     50% {
         transform: translateY(-10px);
     }
+}
+
+/* 照片选择和移动功能样式 */
+.select-mode-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 8px 15px;
+    background: linear-gradient(45deg, #ff8da1, #ff6b88);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+.select-mode-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(255, 107, 136, 0.3);
+}
+
+.select-mode-btn.active {
+    background: #ff4466;
+}
+
+.thumbnail-grid.select-mode .grid-thumbnail {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.thumbnail-grid.select-mode .grid-thumbnail:hover {
+    transform: scale(1.05);
+}
+
+.grid-thumbnail.selected {
+    border: 3px solid #ff4466;
+    position: relative;
+}
+
+.grid-thumbnail.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #ff4466;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.move-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 20px;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.1);
+    display: none;
+    z-index: 1000;
+}
+
+.move-panel-content {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.selected-count {
+    color: #ff4466;
+    font-weight: bold;
+}
+
+.chapter-select {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chapter-select select {
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+.move-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.move-actions button {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.move-confirm {
+    background: #ff4466;
+    color: white;
+}
+
+.move-cancel {
+    background: #eee;
+    color: #666;
+}
+
+.move-actions button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 } 

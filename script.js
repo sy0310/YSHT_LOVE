@@ -552,12 +552,13 @@ function openLightbox(item, index) {
     });
 }
 
-// 照片轮播功能
+// 修改初始化幻灯片函数
 function initSlideshow() {
-    const slidesContainer = document.querySelector('.slides');
     const slidesWrapper = document.querySelector('.slides-wrapper');
     const prevButton = document.getElementById('prevSlide');
     const nextButton = document.getElementById('nextSlide');
+    
+    // 获取当前章节的照片
     const photos = photosByChapter[currentChapter];
     
     // 清空现有内容
@@ -568,6 +569,31 @@ function initSlideshow() {
         return;
     }
 
+    // 如果是情人节特辑，直接显示网格
+    if (currentChapter === 'valentine') {
+        const slide = document.createElement('div');
+        slide.className = 'slide';
+        slide.style.position = 'absolute';
+        slide.style.left = '0';
+        slide.appendChild(createValentineGrid(photos));
+        slidesWrapper.appendChild(slide);
+        
+        // 隐藏导航按钮
+        prevButton.style.display = 'none';
+        nextButton.style.display = 'none';
+        
+        // 隐藏返回按钮
+        const backToGridBtn = document.getElementById('backToGrid');
+        backToGridBtn.style.display = 'none';
+        
+        return;
+    }
+
+    // 其他章节显示幻灯片
+    prevButton.style.display = 'block';
+    nextButton.style.display = 'block';
+    document.getElementById('backToGrid').style.display = 'block';
+    
     // 添加照片
     photos.forEach((photo, index) => {
         const slide = document.createElement('div');
@@ -575,52 +601,26 @@ function initSlideshow() {
         slide.style.position = 'absolute';
         slide.style.left = `${index * 100}%`;
         
-        if (currentChapter === 'heart') {
-            slide.appendChild(createHeartChapterBg());
-        } else if (currentChapter === 'wait') {
-            slide.appendChild(createWaitChapterBg());
-        } else if (currentChapter === 'future') {
-            slide.appendChild(createFutureChapterBg());
-        }
-        
-        if (currentChapter === 'valentine') {
-            slide.appendChild(createValentineGrid(photos));
+        if (index === 0) {
+            slide.appendChild(createThumbnailGrid(photos));
         } else {
-            if (index === 0) {
-                slide.appendChild(createThumbnailGrid(photos));
-            } else {
-                const img = createImage(photo);
-                slide.appendChild(img);
-            }
+            const img = createImage(photo);
+            slide.appendChild(img);
         }
         
         slidesWrapper.appendChild(slide);
     });
 
-    // 定义全局的 updateSlide 函数
+    // 更新 updateSlide 函数
     updateSlide = function(newIndex) {
         currentSlide = newIndex;
         slidesWrapper.style.transform = `translateX(-${currentSlide * 100}%)`;
-        displayComments(photos[currentSlide].id);
+        if (currentChapter !== 'valentine') {
+            displayComments(photos[currentSlide].id);
+        }
     };
 
-    // 切换到上一张
-    function prevSlide() {
-        const newIndex = (currentSlide - 1 + photos.length) % photos.length;
-        updateSlide(newIndex);
-    }
-
-    // 切换到下一张
-    function nextSlide() {
-        const newIndex = (currentSlide + 1) % photos.length;
-        updateSlide(newIndex);
-    }
-
-    // 绑定按钮事件
-    prevButton.onclick = prevSlide;
-    nextButton.onclick = nextSlide;
-
-    // 初始化显示第一张
+    // 初始化显示
     updateSlide(0);
 }
 
@@ -836,6 +836,153 @@ function createVideo(item) {
     return video;
 }
 
+// 添加照片移动功能
+function addMovePhotoFeature() {
+    // 添加选择模式切换按钮
+    const selectModeBtn = document.createElement('button');
+    selectModeBtn.className = 'select-mode-btn';
+    selectModeBtn.innerHTML = '选择照片';
+    document.querySelector('.slideshow-container').appendChild(selectModeBtn);
+
+    let isSelectMode = false;
+    let selectedPhotos = new Set();
+
+    // 添加移动面板
+    const movePanel = document.createElement('div');
+    movePanel.className = 'move-panel';
+    movePanel.innerHTML = `
+        <div class="move-panel-content">
+            <div class="selected-count">已选择: <span>0</span> 张照片</div>
+            <div class="chapter-select">
+                <label>移动到:</label>
+                <select>
+                    <option value="heart">三年心动</option>
+                    <option value="wait">九年沉淀</option>
+                    <option value="future">未来</option>
+                    <option value="valentine">情人节特辑</option>
+                </select>
+            </div>
+            <div class="move-actions">
+                <button class="move-confirm">确认移动</button>
+                <button class="move-cancel">取消</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(movePanel);
+
+    // 切换选择模式
+    selectModeBtn.addEventListener('click', () => {
+        isSelectMode = !isSelectMode;
+        selectModeBtn.classList.toggle('active', isSelectMode);
+        document.querySelector('.thumbnail-grid').classList.toggle('select-mode', isSelectMode);
+        
+        if (isSelectMode) {
+            movePanel.style.display = 'block';
+            selectModeBtn.innerHTML = '取消选择';
+        } else {
+            movePanel.style.display = 'none';
+            selectModeBtn.innerHTML = '选择照片';
+            selectedPhotos.clear();
+            updateSelectedCount();
+            clearPhotoSelection();
+        }
+    });
+
+    // 更新选中数量显示
+    function updateSelectedCount() {
+        movePanel.querySelector('.selected-count span').textContent = selectedPhotos.size;
+    }
+
+    // 清除照片选择状态
+    function clearPhotoSelection() {
+        document.querySelectorAll('.grid-thumbnail').forEach(thumb => {
+            thumb.classList.remove('selected');
+        });
+    }
+
+    // 添加照片选择功能
+    function addPhotoSelection() {
+        document.querySelectorAll('.grid-thumbnail').forEach(thumb => {
+            thumb.addEventListener('click', (e) => {
+                if (!isSelectMode) return;
+                e.stopPropagation(); // 阻止原有的点击事件
+
+                const photoIndex = parseInt(thumb.querySelector('.thumbnail-number').textContent);
+                const photoId = photosByChapter[currentChapter][photoIndex].id;
+
+                if (thumb.classList.toggle('selected')) {
+                    selectedPhotos.add(photoId);
+                } else {
+                    selectedPhotos.delete(photoId);
+                }
+                updateSelectedCount();
+            });
+        });
+    }
+
+    // 处理照片移动
+    movePanel.querySelector('.move-confirm').addEventListener('click', async () => {
+        if (selectedPhotos.size === 0) {
+            alert('请先选择要移动的照片');
+            return;
+        }
+
+        const targetChapter = movePanel.querySelector('select').value;
+        if (targetChapter === currentChapter) {
+            alert('不能移动到当前章节');
+            return;
+        }
+
+        try {
+            // 移动选中的照片
+            for (const photoId of selectedPhotos) {
+                const photo = photosByChapter[currentChapter].find(p => p.id === photoId);
+                if (photo) {
+                    // 构建新的文件名
+                    const oldPath = photo.url.split('/').pop();
+                    const newPath = `photos/${targetChapter}/${oldPath}`;
+                    
+                    // 移动文件
+                    await moveGitHubFile(photo.url, newPath);
+                    
+                    // 更新数据结构
+                    photosByChapter[currentChapter] = photosByChapter[currentChapter].filter(p => p.id !== photoId);
+                    photosByChapter[targetChapter].push({
+                        ...photo,
+                        url: newPath
+                    });
+                }
+            }
+
+            // 重新初始化显示
+            selectedPhotos.clear();
+            updateSelectedCount();
+            isSelectMode = false;
+            selectModeBtn.classList.remove('active');
+            movePanel.style.display = 'none';
+            initSlideshow();
+            
+            alert('照片移动成功！');
+        } catch (error) {
+            console.error('移动照片失败:', error);
+            alert('移动照片失败，请重试');
+        }
+    });
+
+    // 取消移动
+    movePanel.querySelector('.move-cancel').addEventListener('click', () => {
+        isSelectMode = false;
+        selectModeBtn.classList.remove('active');
+        movePanel.style.display = 'none';
+        selectedPhotos.clear();
+        updateSelectedCount();
+        clearPhotoSelection();
+    });
+
+    // 初始化照片选择功能
+    addPhotoSelection();
+}
+
 // 修改页面加载事件
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.chapter').forEach(chapter => {
@@ -885,4 +1032,7 @@ document.addEventListener('DOMContentLoaded', () => {
     valentineUploadBtn.addEventListener('click', () => {
         handleFileUpload('valentine');
     });
+    
+    // 初始化照片移动功能
+    addMovePhotoFeature();
 }); 
