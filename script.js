@@ -37,19 +37,18 @@ const githubConfig = {
 async function uploadToGithub(file, chapter) {
     try {
         // 检查文件大小
-        const maxSize = 100 * 1024 * 1024;
+        const maxSize = 100 * 1024 * 1024; // 100MB
         if (file.size > maxSize) {
             throw new Error(`文件大小超过限制：${(file.size / 1024 / 1024).toFixed(2)}MB > 100MB`);
         }
 
         // 获取当前章节的照片数量，用于生成新的文件名
-        let nextPhotoNumber = photosByChapter[chapter].length + 1;
+        const nextPhotoNumber = photosByChapter[chapter].length + 1;
 
         // 创建新的文件名：序号.jpg
         const newFileName = `${nextPhotoNumber}.jpg`;
-        // 对于情人节特辑，直接存储在 photos/valentine/ 目录下
-        const path = `photos/${chapter}/${newFileName}`;
-        
+        const path = `photos/${chapter}/${newFileName}`; // 直接存储在 photos/valentine/ 目录下
+
         console.log('准备上传文件:', {
             originalName: file.name,
             newName: newFileName,
@@ -81,7 +80,7 @@ async function uploadToGithub(file, chapter) {
         const response = await fetch(apiUrl, {
             method: 'PUT',
             headers: {
-                'Authorization': `token ${token}`,  // 使用 token 认证
+                'Authorization': `token ${token}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/vnd.github.v3+json'
             },
@@ -92,7 +91,7 @@ async function uploadToGithub(file, chapter) {
             })
         });
 
-        // 添加更详细的错误处理
+        // 处理响应
         if (!response.ok) {
             const errorData = await response.json();
             console.error('GitHub API 错误:', {
@@ -100,20 +99,10 @@ async function uploadToGithub(file, chapter) {
                 statusText: response.statusText,
                 error: errorData
             });
-            
-            if (response.status === 401) {
-                throw new Error('GitHub Token 无效或已过期，请更新 token');
-            } else if (response.status === 403) {
-                throw new Error('没有权限访问该仓库，请检查 token 权限');
-            } else if (response.status === 404) {
-                throw new Error('找不到指定的仓库或路径，请检查配置');
-            } else {
-                throw new Error(errorData.message || `上传失败: HTTP ${response.status}`);
-            }
+            throw new Error(errorData.message || `上传失败: HTTP ${response.status}`);
         }
 
         const responseData = await response.json();
-
         console.log('文件上传成功:', responseData.content.download_url);
 
         // 上传成功后，更新照片数组
@@ -136,11 +125,11 @@ async function uploadToGithub(file, chapter) {
 }
 
 // 修改文件上传处理函数
-function handleFileUpload(chapter) {
+async function handleFileUpload(chapter) {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.multiple = true;
+    input.multiple = true; // 支持多文件上传
 
     input.onchange = async (e) => {
         const files = Array.from(e.target.files);
@@ -171,33 +160,15 @@ function handleFileUpload(chapter) {
                 statusText.textContent = `正在上传第 ${i + 1}/${files.length} 个文件...`;
 
                 // 上传到 GitHub
-                const uploadResult = await uploadToGithub(file, chapter);
-                
-                // 添加到照片数组
-                if (chapter === 'valentine') {
-                    // 情人节特辑的照片已经在 uploadToGithub 中添加到 valentinePhotos
-                    photosByChapter.valentine = Object.values(valentinePhotos)
-                        .flat()
-                        .sort((a, b) => new Date(b.date) - new Date(a.date));
-                } else {
-                    photosByChapter[chapter].push({
-                        id: `${chapter}${uploadResult.number}`,
-                        url: uploadResult.url,
-                        date: new Date().toISOString()
-                    });
-                }
+                await uploadToGithub(file, chapter);
             }
 
             // 完成上传
             statusText.textContent = '上传完成！';
             progressBar.style.width = '100%';
             
-            // 完成上传后的刷新显示
-            if (chapter === 'valentine') {
-                filterValentineMedia('all');
-            } else {
-                initSlideshow();
-            }
+            // 刷新情人节特辑显示
+            filterValentineMedia('all');
             
             setTimeout(() => {
                 progressDiv.remove();
@@ -211,7 +182,7 @@ function handleFileUpload(chapter) {
         }
     };
 
-    input.click();
+    input.click(); // 自动打开文件选择对话框
 }
 
 // 初始化照片数组
