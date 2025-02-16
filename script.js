@@ -589,10 +589,9 @@ function initSlideshow() {
         return;
     }
 
-    // 显示导航按钮和返回按钮（情人节特辑不会进入这个函数）
+    // 显示导航按钮
     prevButton.style.display = 'block';
     nextButton.style.display = 'block';
-    document.getElementById('backToGrid').style.display = 'block';
     
     // 添加照片
     photos.forEach((photo, index) => {
@@ -601,25 +600,37 @@ function initSlideshow() {
         slide.style.position = 'absolute';
         slide.style.left = `${index * 100}%`;
         
-        if (index === 0) {
-            slide.appendChild(createThumbnailGrid(photos));
-        } else {
-            const img = createImage(photo);
-            slide.appendChild(img);
-        }
+        const img = createImage(photo);
+        slide.appendChild(img);
         
         slidesWrapper.appendChild(slide);
     });
 
     // 更新 updateSlide 函数
     updateSlide = function(newIndex) {
+        const photos = photosByChapter[currentChapter]; // 获取当前章节的照片
+        if (newIndex < 0 || newIndex >= photos.length) return; // 边界检查
         currentSlide = newIndex;
         slidesWrapper.style.transform = `translateX(-${currentSlide * 100}%)`;
-        displayComments(photos[currentSlide].id);
+        displayComments(photos[currentSlide].id); // 显示当前照片的评论
     };
 
     // 初始化显示
-    updateSlide(0);
+    updateSlide(0); // 显示第一张照片
+
+    // 切换按钮事件
+    prevButton.addEventListener('click', () => {
+        if (currentSlide > 0) {
+            updateSlide(currentSlide - 1);
+        }
+    });
+
+    nextButton.addEventListener('click', () => {
+        const photos = photosByChapter[currentChapter];
+        if (currentSlide < photos.length - 1) {
+            updateSlide(currentSlide + 1);
+        }
+    });
 }
 
 // 创建背景动画元素
